@@ -40,9 +40,9 @@ jobs:
             exit 1
           fi
 
-          export PATH="$SDK_ROOT/platform-tools:$(dirname "$SDKMANAGER"):$PATH"
+          export PATH="$SDK_ROOT/platform-tools:$PATH"
 
-          yes | "$SDKMANAGER" --licenses
+          yes | "$SDKMANAGER" --licenses || true
 
           "$SDKMANAGER" --install \
             "platform-tools" \
