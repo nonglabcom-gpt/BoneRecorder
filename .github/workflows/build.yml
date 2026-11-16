@@ -12,15 +12,18 @@ jobs:
     timeout-minutes: 20
 
     steps:
+      # 1. Checkout source
       - name: Checkout source
         uses: actions/checkout@v4
 
+      # 2. Prepare Java
       - name: Prepare Java
         uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '17'
 
+      # 3. Install Android SDK
       - name: Install Android SDK
         shell: bash
         run: |
@@ -45,20 +48,30 @@ jobs:
             exit 1
           fi
 
+          echo "Using SDK Manager: $SDKMANAGER"
+
+          # Accept Android SDK licenses
+          set +o pipefail
+
           yes | "$SDKMANAGER" \
             --sdk_root="$SDK_ROOT" --licenses
 
+          set -o pipefail
+
+          # Install required SDK packages
           "$SDKMANAGER" \
             --sdk_root="$SDK_ROOT" \
             "platform-tools" \
             "platforms;android-35" \
             "build-tools;35.0.0"
 
+      # 4. Setup Gradle
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.7'
 
+      # 5. Check source ZIP
       - name: Check source ZIP
         shell: bash
         run: |
@@ -73,6 +86,7 @@ jobs:
 
           unzip -t "$ZIP"
 
+      # 6. Extract source
       - name: Extract source
         shell: bash
         run: |
@@ -83,13 +97,18 @@ jobs:
           test -f source/BoneRecorder/app/build.gradle
           test -f source/BoneRecorder/settings.gradle
 
+      # 7. Build APK
       - name: Build APK
         run: |
           cd source/BoneRecorder
           gradle --no-daemon --stacktrace assembleDebug
 
+      # 8. Verify APK
       - name: Verify APK
+        shell: bash
         run: |
+          set -e
+
           APK="source/BoneRecorder/app/build/outputs/apk/debug/app-debug.apk"
 
           if [ ! -s "$APK" ]; then
@@ -97,8 +116,10 @@ jobs:
             exit 1
           fi
 
+          echo "APK successfully generated:"
           ls -lh "$APK"
 
+      # 9. Upload APK
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
