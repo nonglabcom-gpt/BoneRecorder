@@ -56,7 +56,7 @@ jobs:
 
       - name: Extract source
         run: |
-          unzip -q BoneRecorder_Source_1.3.zip -d source
+          unzip -q Bones_REC_Source_1.4.zip -d source
 
       - name: Build APK
         run: |
