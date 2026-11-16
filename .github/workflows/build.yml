@@ -1,4 +1,4 @@
-name: Build Bone Recorder APK
+name: Build Bones REC 2.2.1 APK
 
 on:
   workflow_dispatch:
@@ -9,6 +9,7 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
 
     steps:
       - name: Checkout source
@@ -26,25 +27,29 @@ jobs:
           set -e
 
           SDK_ROOT="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
-          export ANDROID_HOME="$SDK_ROOT"
-          export ANDROID_SDK_ROOT="$SDK_ROOT"
+
+          mkdir -p "$SDK_ROOT"
+
+          echo "ANDROID_HOME=$SDK_ROOT" >> "$GITHUB_ENV"
+          echo "ANDROID_SDK_ROOT=$SDK_ROOT" >> "$GITHUB_ENV"
 
           SDKMANAGER="$SDK_ROOT/cmdline-tools/latest/bin/sdkmanager"
 
           if [ ! -x "$SDKMANAGER" ]; then
-            SDKMANAGER=$(find "$SDK_ROOT/cmdline-tools" -name sdkmanager -type f | sort -V | tail -n 1)
+            SDKMANAGER=$(find "$SDK_ROOT/cmdline-tools" \
+              -type f -name sdkmanager 2>/dev/null | sort -V | tail -n 1)
           fi
 
-          if [ ! -x "$SDKMANAGER" ]; then
-            echo "Android SDK manager not found"
+          if [ -z "$SDKMANAGER" ] || [ ! -x "$SDKMANAGER" ]; then
+            echo "ERROR: Android SDK Manager not found"
             exit 1
           fi
 
-          export PATH="$SDK_ROOT/platform-tools:$PATH"
+          yes | "$SDKMANAGER" \
+            --sdk_root="$SDK_ROOT" --licenses
 
-          yes | "$SDKMANAGER" --licenses || true
-
-          "$SDKMANAGER" --install \
+          "$SDKMANAGER" \
+            --sdk_root="$SDK_ROOT" \
             "platform-tools" \
             "platforms;android-35" \
             "build-tools;35.0.0"
@@ -54,18 +59,50 @@ jobs:
         with:
           gradle-version: '8.7'
 
-      - name: Extract source
+      - name: Check source ZIP
+        shell: bash
         run: |
-          unzip -q Bones_REC_Source_2.2.zip -d source
+          set -e
+
+          ZIP="Bones_REC_2.2.1_Optimized_Source.zip"
+
+          if [ ! -f "$ZIP" ]; then
+            echo "ERROR: $ZIP not found"
+            exit 1
+          fi
+
+          unzip -t "$ZIP"
+
+      - name: Extract source
+        shell: bash
+        run: |
+          set -e
+
+          unzip -q Bones_REC_2.2.1_Optimized_Source.zip -d source
+
+          test -f source/BoneRecorder/app/build.gradle
+          test -f source/BoneRecorder/settings.gradle
 
       - name: Build APK
         run: |
           cd source/BoneRecorder
-          gradle assembleDebug
+          gradle --no-daemon --stacktrace assembleDebug
+
+      - name: Verify APK
+        run: |
+          APK="source/BoneRecorder/app/build/outputs/apk/debug/app-debug.apk"
+
+          if [ ! -s "$APK" ]; then
+            echo "ERROR: APK was not generated"
+            exit 1
+          fi
+
+          ls -lh "$APK"
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: BoneRecorder-debug
+          name: Bones-REC-2.2.1-Optimized
           path: source/BoneRecorder/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
+          retention-days: 14
