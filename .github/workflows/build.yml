@@ -56,7 +56,7 @@ jobs:
 
       - name: Extract source
         run: |
-          unzip -q Bones_REC_Source_2.1.zip -d source
+          unzip -q Bones_REC_Source_2.1_Fixed.zip -d source
 
       - name: Build APK
         run: |
